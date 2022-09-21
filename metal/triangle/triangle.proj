@@ -1,0 +1,9 @@
+{
+  sources: [
+    "triangle.cpp",
+    "../utils.cpp"
+  ],
+  headerSearchPaths: [
+    "../"
+  ]
+}
