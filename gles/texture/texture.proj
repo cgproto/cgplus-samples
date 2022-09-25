@@ -1,0 +1,12 @@
+{
+  sources: [
+    "texture.cpp",
+    "../utils.cpp"
+  ],
+  headerSearchPaths: [
+    "../"
+  ],
+  dependencies: [
+    "stb_image"
+  ]
+}

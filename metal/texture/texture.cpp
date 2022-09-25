@@ -3,10 +3,18 @@
 #include "CGPlus.h"
 #include "utils.h"
 
+struct VertexData
+{
+  simd::float3 position;
+  simd::float2 texCoord;
+};
+
 MTL::Device *_device = nullptr;
 MTL::CommandQueue *_commandQueue = nullptr;
 MTL::RenderPipelineState *_pipelineState = nullptr;
-MTL::Buffer *_buffer = nullptr;
+MTL::Buffer *_vertexBuffer = nullptr;
+MTL::Buffer *_indexBuffer = nullptr;
+MTL::Texture *_texture = nullptr;
 
 void draw(CA::MetalDrawable *currentDrawable, MTL::RenderPassDescriptor *passDescriptor)
 {
@@ -16,8 +24,12 @@ void draw(CA::MetalDrawable *currentDrawable, MTL::RenderPassDescriptor *passDes
   MTL::RenderCommandEncoder *commandEncoder = commandBuffer->renderCommandEncoder(passDescriptor);
 
   commandEncoder->setRenderPipelineState(_pipelineState);
-  commandEncoder->setVertexBuffer(_buffer, 0, 0);
-  commandEncoder->drawPrimitives(MTL::PrimitiveType::PrimitiveTypeTriangle, NS::UInteger(0), NS::UInteger(3));
+  commandEncoder->setVertexBuffer(_vertexBuffer, 0, 0);
+  commandEncoder->setFragmentTexture(_texture, 0);
+  commandEncoder->drawIndexedPrimitives(MTL::PrimitiveType::PrimitiveTypeTriangle,
+                                        6, MTL::IndexType::IndexTypeUInt16,
+                                        _indexBuffer,
+                                        0);
 
   commandEncoder->endEncoding();
   commandBuffer->presentDrawable(currentDrawable);
@@ -46,14 +58,23 @@ void init(MTL::Device *device)
     printf("%s", error->localizedDescription()->utf8String());
   }
 
-  simd::float3 positions[3] = {
-      {-0.8f, -0.8f, 0.0f},
-      {+0.8f, -0.8f, 0.0f},
-      {0.0f, 0.8f, 0.0f}};
+  _texture = loadTexture(_device, "../../resources/logo.png");
 
-  const size_t positionsDataSize = sizeof(positions);
-  _buffer = _device->newBuffer(positionsDataSize, MTL::ResourceStorageModeShared);
-  memcpy(_buffer->contents(), positions, positionsDataSize);
+  VertexData verts[4] = {
+      {{-0.8f, 0.8f, 0.0f}, {0.0f, 0.0f}},
+      {{-0.8f, -0.8f, 0.0f}, {0.0f, 1.0f}},
+      {{0.8f, -0.8f, 0.0f}, {1.0f, 1.0f}},
+      {{0.8f, 0.8f, 0.0f}, {1.0f, 0.0f}}};
+  uint16_t indices[] = {
+      0, 1, 3,
+      1, 2, 3};
+
+  const size_t vertexDataSize = sizeof(verts);
+  const size_t indexDataSize = sizeof(indices);
+  _vertexBuffer = _device->newBuffer(vertexDataSize, MTL::ResourceStorageModeShared);
+  _indexBuffer = _device->newBuffer(indexDataSize, MTL::ResourceStorageModeShared);
+  memcpy(_vertexBuffer->contents(), verts, vertexDataSize);
+  memcpy(_indexBuffer->contents(), indices, indexDataSize);
 
   vertexFunction->release();
   fragmentFunction->release();
@@ -62,7 +83,8 @@ void init(MTL::Device *device)
 }
 void release()
 {
-  _buffer->release();
+  _vertexBuffer->release();
+  _indexBuffer->release();
   _pipelineState->release();
   _commandQueue->release();
   _device->release();
